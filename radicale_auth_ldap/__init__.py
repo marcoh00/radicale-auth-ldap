@@ -26,6 +26,7 @@ Authentication based on the ``ldap3`` module
 """
 
 import ldap3
+import ldap3.core.exceptions
 import ldap3.utils.dn
 
 from radicale.auth import BaseAuth
@@ -84,7 +85,7 @@ class Auth(BaseAuth):
                 else:
                     self.logger.debug("LDAP bind failed")
                     return False
-            except ldap3.LDAPInvalidCredentialsResult:
+            except ldap3.core.exceptions.LDAPInvalidCredentialsResult:
                 self.logger.debug("LDAP invalid credentials")
             except Exception as err:
                 self.logger.debug("LDAP error %s" % err)
