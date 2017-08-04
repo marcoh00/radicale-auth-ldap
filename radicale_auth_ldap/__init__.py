@@ -25,11 +25,14 @@ Authentication based on the ``ldap3`` module
 (https://github.com/cannatag/ldap3/).
 """
 
+
 import ldap3
 import ldap3.core.exceptions
-import ldap3.utils.dn
 
 from radicale.auth import BaseAuth
+
+import radicale_auth_ldap.ldap3imports
+
 
 class Auth(BaseAuth):
     def is_authenticated(self, user, password):
@@ -53,7 +56,7 @@ class Auth(BaseAuth):
         except Exception as err:
             self.logger.debug("LDAP error: %s" % err)
 
-        distinguished_name = "%s=%s" % (ATTRIBUTE, ldap3.utils.dn.escape_attribute_value(user))
+        distinguished_name = "%s=%s" % (ATTRIBUTE, ldap3imports.escape_attribute_value(user))
         self.logger.debug("LDAP bind for %s in base %s" % (distinguished_name, BASE))
 
         if FILTER:
