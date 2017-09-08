@@ -35,6 +35,7 @@ import radicale_auth_ldap.ldap3imports
 
 
 class Auth(BaseAuth):
+
     def is_authenticated(self, user, password):
         """Check if ``user``/``password`` couple is valid."""
         SERVER = ldap3.Server(self.configuration.get("auth", "ldap_url"))
@@ -44,20 +45,28 @@ class Auth(BaseAuth):
         BINDDN = self.configuration.get("auth", "ldap_binddn")
         PASSWORD = self.configuration.get("auth", "ldap_password")
         SCOPE = self.configuration.get("auth", "ldap_scope")
-        
+        STARTTLS = self.configuration.get("auth", "ldap_starttls")
+
         if BINDDN and PASSWORD:
             conn = ldap3.Connection(SERVER, BINDDN, PASSWORD)
             conn.bind()
         else:
             conn = ldap3.Connection(SERVER)
 
+        if STARTTLS == 'True':
+            conn.start_tls()
+            conn.bind()
+
         try:
-            self.logger.debug("LDAP whoami: %s" % conn.extend.standard.who_am_i())
+            self.logger.debug("LDAP whoami: %s" %
+                              conn.extend.standard.who_am_i())
         except Exception as err:
             self.logger.debug("LDAP error: %s" % err)
 
-        distinguished_name = "%s=%s" % (ATTRIBUTE, ldap3imports.escape_attribute_value(user))
-        self.logger.debug("LDAP bind for %s in base %s" % (distinguished_name, BASE))
+        distinguished_name = "%s=%s" % (
+            ATTRIBUTE, ldap3imports.escape_attribute_value(user))
+        self.logger.debug("LDAP bind for %s in base %s" %
+                          (distinguished_name, BASE))
 
         if FILTER:
             filter_string = "(&(%s)%s)" % (distinguished_name, FILTER)
@@ -79,6 +88,11 @@ class Auth(BaseAuth):
             try:
                 conn = ldap3.Connection(SERVER, user_dn, password)
                 conn.bind()
+
+                if STARTTLS == 'True':
+                    conn.start_tls()
+                    conn.bind()
+
                 self.logger.debug(conn.result)
                 whoami = conn.extend.standard.who_am_i()
                 self.logger.debug("LDAP whoami: %s" % whoami)

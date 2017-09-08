@@ -31,4 +31,8 @@ ldap_password = verysecurepassword
 
 # LDAP scope of the search
 ldap_scope = LEVEL
+
+# Whether to use STARTTLS
+ldap_starttls = True
+
 ```
