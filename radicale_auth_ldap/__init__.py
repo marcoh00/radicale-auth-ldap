@@ -50,7 +50,11 @@ class Auth(BaseAuth):
             conn.bind()
         else:
             conn = ldap3.Connection(SERVER)
-
+        
+        if STARTTLS == 'True':
+            conn.start_tls()
+            conn.bind()
+        
         try:
             self.logger.debug("LDAP whoami: %s" % conn.extend.standard.who_am_i())
         except Exception as err:
@@ -79,6 +83,11 @@ class Auth(BaseAuth):
             try:
                 conn = ldap3.Connection(SERVER, user_dn, password)
                 conn.bind()
+                
+                if STARTTLS == 'True':
+                    conn.start_tls()
+                    conn.bind()
+                
                 self.logger.debug(conn.result)
                 whoami = conn.extend.standard.who_am_i()
                 self.logger.debug("LDAP whoami: %s" % whoami)
