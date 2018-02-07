@@ -47,9 +47,9 @@ class Auth(BaseAuth):
         
         if BINDDN and PASSWORD:
             conn = ldap3.Connection(SERVER, BINDDN, PASSWORD)
-            conn.bind()
         else:
             conn = ldap3.Connection(SERVER)
+        conn.bind()
 
         try:
             self.logger.debug("LDAP whoami: %s" % conn.extend.standard.who_am_i())
