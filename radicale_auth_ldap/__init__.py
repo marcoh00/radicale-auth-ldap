@@ -44,6 +44,7 @@ class Auth(BaseAuth):
         BINDDN = self.configuration.get("auth", "ldap_binddn")
         PASSWORD = self.configuration.get("auth", "ldap_password")
         SCOPE = self.configuration.get("auth", "ldap_scope")
+        SUPPORT_EXTENDED = self.configuration.getboolean("auth", "ldap_support_extended", fallback=True)
         
         if BINDDN and PASSWORD:
             conn = ldap3.Connection(SERVER, BINDDN, PASSWORD)
@@ -80,8 +81,12 @@ class Auth(BaseAuth):
                 conn = ldap3.Connection(SERVER, user_dn, password)
                 conn.bind()
                 self.logger.debug(conn.result)
-                whoami = conn.extend.standard.who_am_i()
-                self.logger.debug("LDAP whoami: %s" % whoami)
+                if SUPPORT_EXTENDED:
+                    whoami = conn.extend.standard.who_am_i()
+                    self.logger.debug("LDAP whoami: %s" % whoami)
+                else:
+                    self.logger.debug("LDAP skip extended: call whoami")
+                    whoami = conn.result['result'] == 0
                 if whoami:
                     self.logger.debug("LDAP bind OK")
                     return True
