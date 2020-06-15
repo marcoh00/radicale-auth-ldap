@@ -45,6 +45,9 @@ class Auth(BaseAuth):
         PASSWORD = self.configuration.get("auth", "ldap_password")
         SCOPE = self.configuration.get("auth", "ldap_scope")
         SUPPORT_EXTENDED = self.configuration.getboolean("auth", "ldap_support_extended", fallback=True)
+
+        if ' ' in SERVER:  # Handle if multiple LDAP server is defined in ldap_url with space separation
+            SERVER = SERVER.split(' ')  # ldap3.connection can handle multiple servers in a list as an implicit server pool
         
         if BINDDN and PASSWORD:
             conn = ldap3.Connection(SERVER, BINDDN, PASSWORD)
