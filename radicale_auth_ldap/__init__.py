@@ -38,14 +38,14 @@ class Auth(BaseAuth):
     def is_authenticated(self, user, password):
         """Check if ``user``/``password`` couple is valid."""
         server_list = self.configuration.get("auth", "ldap_url")
-        self.logger.info("Server list type: %s" % type(server_list))
-        self.logger.info("Server list: %s" % server_list)
+        self.logger.warn("Server list type: %s" % type(server_list))
+        self.logger.warn("Server list: %s" % server_list)
         if ' ' in server_list:  # Handle for multiple LDAP server defined in ldap_url with space separation
-            self.logger.info("Server list contains multiple servers")
+            self.logger.warn("Server list contains multiple servers")
             servers = server_list.split(' ')
             SERVER = ldap3.ServerPool(None)
-            self.logger.info("Servers type: %s" % type(serverst))
-            self.logger.info("Servers: %s" % servers)
+            self.logger.warn("Servers type: %s" % type(servers))
+            self.logger.warn("Servers: %s" % servers)
             for s in servers:
                 SERVER.add(ldap3.Server(s))
         else:  # only one server is defined
