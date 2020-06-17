@@ -37,19 +37,16 @@ import radicale_auth_ldap.ldap3imports
 class Auth(BaseAuth):
     def is_authenticated(self, user, password):
         """Check if ``user``/``password`` couple is valid."""
-        server_list = self.configuration.get("auth", "ldap_url")
-        self.logger.warn("Server list type: %s" % type(server_list))
-        self.logger.warn("Server list: %s" % server_list)
-        if ' ' in server_list:  # Handle for multiple LDAP server defined in ldap_url with space separation
-            self.logger.warn("Server list contains multiple servers")
-            servers = server_list.split(' ')
+        servers = self.configuration.get("auth", "ldap_url")
+        if ' ' in servers:  # Handle for multiple LDAP server defined in ldap_url with space separation
+            servers = servers.split(' ')
+            self.logger.debug("Multiple servers: %s" % servers)
             SERVER = ldap3.ServerPool(None)
-            self.logger.warn("Servers type: %s" % type(servers))
-            self.logger.warn("Servers: %s" % servers)
             for s in servers:
                 SERVER.add(ldap3.Server(s))
         else:  # only one server is defined
-            SERVER = ldap3.Server(server_list)
+            self.logger.debug("Single server: %s" % servers)
+            SERVER = ldap3.Server(servers)
         BASE = self.configuration.get("auth", "ldap_base")
         ATTRIBUTE = self.configuration.get("auth", "ldap_attribute")
         FILTER = self.configuration.get("auth", "ldap_filter")
