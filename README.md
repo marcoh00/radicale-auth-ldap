@@ -8,7 +8,7 @@ You will need to set a few options inside your radicale config file. Example:
 [auth]
 type = radicale_auth_ldap
 
-# LDAP server URL, with protocol and port
+# LDAP server URL, with protocol and port (multiple servers can be separated by spaces)
 ldap_url = ldap://ldap:389
 
 # LDAP base path
