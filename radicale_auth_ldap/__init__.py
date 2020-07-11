@@ -5,7 +5,6 @@
 # Copyright © 2011-2013 Guillaume Ayoub
 # Copyright © 2015 Raoul Thill
 # Copyright © 2017 Marco Huenseler
-# Copyright © 2020 Johannes Zellner
 #
 # This library is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -26,25 +25,26 @@ Authentication based on the ``ldap3`` module
 (https://github.com/cannatag/ldap3/).
 """
 
+
 import ldap3
+import ldap3.core.exceptions
 
 from radicale.auth import BaseAuth
 from radicale.log import logger
 
+import radicale_auth_ldap.ldap3imports
+
+
 PLUGIN_CONFIG_SCHEMA = {
     "auth": {
-        "password": {
-            "value": "",
-            "type": str
-        },
         "ldap_url": {
             "value": "ldap://localhost:389",
             "help": "LDAP server URL, with protocol and port",
             "type": str
         },
         "ldap_base": {
-            "value": "ou=users,dc=example",
-            "help": "LDAP base DN for users",
+            "value": "ou=users,dc=example,dc=com",
+            "help": "LDAP base path when searching for users",
             "type": str
         },
         "ldap_filter": {
@@ -66,18 +66,31 @@ PLUGIN_CONFIG_SCHEMA = {
             "value": "",
             "help": "LDAP password used with ldap_binddn",
             "type": str
+        },
+        "ldap_scope": {
+            "value": "LEVEL",
+            "help": "scope of the search, either BASE, LEVEL or SUBTREE",
+            "type": str
+        },
+        "ldap_support_extended": {
+            "value": True,
+            "help": "",
+            "type": bool
         }
     }
 }
 
 
 class Auth(BaseAuth):
+
     ldap_url = ""
     ldap_base = ""
     ldap_filter = ""
-    ldap_attribute = ""
+    ldap_attribute = "user"
     ldap_binddn = ""
     ldap_password = ""
+    ldap_scope = "LEVEL"
+    ldap_support_extended = True
 
     def __init__(self, configuration):
         super().__init__(configuration.copy(PLUGIN_CONFIG_SCHEMA))
@@ -86,18 +99,34 @@ class Auth(BaseAuth):
 
         if "ldap_url" not in options: raise RuntimeError("The ldap_url configuration for ldap auth is required.")
         if "ldap_base" not in options: raise RuntimeError("The ldap_base configuration for ldap auth is required.")
-        if "ldap_filter" not in options: raise RuntimeError("The ldap_filter configuration for ldap auth is required.")
-        if "ldap_attribute" not in options: raise RuntimeError("The ldap_attribute configuration for ldap auth is required.")
-        if "ldap_binddn" not in options: raise RuntimeError("The ldap_binddn configuration for ldap auth is required.")
-        if "ldap_password" not in options: raise RuntimeError("The ldap_password configuration for ldap auth is required.")
 
         # also get rid of trailing slashes which are typical for uris
         self.ldap_url = configuration.get("auth", "ldap_url").rstrip("/")
         self.ldap_base = configuration.get("auth", "ldap_base")
-        self.ldap_filter = configuration.get("auth", "ldap_filter")
-        self.ldap_attribute = configuration.get("auth", "ldap_attribute")
-        self.ldap_binddn = configuration.get("auth", "ldap_binddn")
-        self.ldap_password = configuration.get("auth", "ldap_password")
+        try:
+            self.ldap_filter = configuration.get("auth", "ldap_filter")
+        except KeyError:
+                pass
+        try:
+            self.ldap_attribute = configuration.get("auth", "ldap_attribute")
+        except KeyError:
+                pass
+        try:
+            self.ldap_binddn = configuration.get("auth", "ldap_binddn")
+        except KeyError:
+                pass
+        try:
+            self.ldap_password = configuration.get("auth", "ldap_password")
+        except KeyError:
+                pass
+        try:
+            self.ldap_scope = configuration.get("auth", "ldap_scope")
+        except KeyError:
+                pass
+        try:
+            self.ldap_support_extended = configuration.get("auth", "ldap_support_extended")
+        except KeyError:
+                pass
 
         logger.info("LDAP auth configuration:")
         logger.info("  %r is %r", "ldap_url", self.ldap_url)
@@ -106,46 +135,67 @@ class Auth(BaseAuth):
         logger.info("  %r is %r", "ldap_attribute", self.ldap_attribute)
         logger.info("  %r is %r", "ldap_binddn", self.ldap_binddn)
         logger.info("  %r is %r", "ldap_password", self.ldap_password)
+        logger.info("  %r is %r", "ldap_scope", self.ldap_scope)
+        logger.info("  %r is %r", "ldap_support_extended", self.ldap_support_extended)
 
     def login(self, login, password):
-        if login == "" or password == "":
-            return ""
+        """Check if ``login``/``password`` couple is valid."""
+        SERVER = ldap3.Server(self.ldap_url)
 
-        server = ldap3.Server(self.ldap_url, get_info=ldap3.ALL)
-        conn = ldap3.Connection(server=server, user=self.ldap_binddn,
-                                password=self.ldap_password, check_names=True,
-                                lazy=False, raise_exceptions=False)
-        conn.open()
+        if self.ldap_binddn and self.ldap_password:
+            conn = ldap3.Connection(SERVER, self.ldap_binddn, self.ldap_password)
+        else:
+            conn = ldap3.Connection(SERVER)
         conn.bind()
 
-        if conn.result["result"] != 0:
-            logger.error(conn.result)
-            return ""
+        try:
+            logger.debug("LDAP whoami: %s" % conn.extend.standard.who_am_i())
+        except Exception as err:
+            logger.error("LDAP error: %s" % err)
 
-        final_search_filter = self.ldap_filter.replace("%username", login)
+        distinguished_name = "%s=%s" % (self.ldap_attribute, ldap3imports.escape_attribute_value(login))
+        logger.debug("LDAP bind for %s in base %s" % (distinguished_name, self.ldap_base))
+
+        if self.ldap_filter:
+            filter_string = "(&(%s)%s)" % (distinguished_name, self.ldap_filter)
+        else:
+            filter_string = distinguished_name
+        logger.debug("LDAP filter: %s" % filter_string)
+
         conn.search(search_base=self.ldap_base,
-                    search_filter=final_search_filter,
-                    attributes=ldap3.ALL_ATTRIBUTES)
+                    search_scope=self.ldap_scope,
+                    search_filter=filter_string,
+                    attributes=[self.ldap_attribute])
 
-        if conn.result["result"] != 0:
-            logger.error(conn.result)
-            return ""
-
-        if len(conn.response) == 0:
-            return ""
-
-        final_user_dn = conn.response[0]["dn"]
+        users = conn.response
         conn.unbind()
 
-        # new connection to check the password as we cannot rebind here
-        conn = ldap3.Connection(server=server, user=final_user_dn,
-                                password=password, check_names=True,
-                                lazy=False, raise_exceptions=False)
-        conn.open()
-        conn.bind()
-
-        if conn.result["result"] != 0:
-            logger.error(conn.result)
+        if users:
+            user_dn = users[0]['dn']
+            uid = users[0]['attributes'][self.ldap_attribute]
+            logger.info("LDAP user %s (%s) found" % (uid, user_dn))
+            try:
+                conn = ldap3.Connection(SERVER, user_dn, password)
+                conn.bind()
+                logger.debug(conn.result)
+                if self.ldap_support_extended:
+                    whoami = conn.extend.standard.who_am_i()
+                    logger.debug("LDAP whoami: %s" % whoami)
+                else:
+                    logger.debug("LDAP skip extended: call whoami")
+                    whoami = conn.result['result'] == 0
+                conn.unbind()
+                if whoami:
+                    logger.info("LDAP bind OK")
+                    return login
+                else:
+                    logger.error("LDAP bind failed")
+                    return ""
+            except ldap3.core.exceptions.LDAPInvalidCredentialsResult:
+                logger.error("LDAP invalid credentials")
+            except Exception as err:
+                logger.error("LDAP error %s" % err)
             return ""
-
-        return login
+        else:
+            logger.error("LDAP user %s not found" % user)
+            return ""
