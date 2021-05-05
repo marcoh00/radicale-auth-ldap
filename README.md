@@ -35,6 +35,6 @@ ldap_password = verysecurepassword
 ldap_scope = LEVEL
 
 # LDAP extended option
-# If the server is samba, ldap_support_extended is should be no
+# If the server is samba, ldap_support_extended should be no
 ldap_support_extended = yes
 ```
