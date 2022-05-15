@@ -10,7 +10,7 @@ You will need to set a few options inside your radicale config file. Example:
 [auth]
 type = radicale_auth_ldap
 
-# LDAP server URL, with protocol and port
+# LDAP server URL, with protocol and port (multiple servers can be separated by spaces)
 ldap_url = ldap://ldap:389
 
 # LDAP base path
@@ -38,3 +38,14 @@ ldap_scope = LEVEL
 # If the server is samba, ldap_support_extended is should be no
 ldap_support_extended = yes
 ```
+
+## SELinux considerations
+If you use SELinux, you will need to add a few rules. To install `radicale-auth-ldap.te`, use these commands.
+
+    sudo checkmodule -M -m -o radicale-auth-ldap.mod radicale-auth-ldap.te && sudo semodule_package -o radicale-auth-ldap.pp -m radicale-auth-ldap.mod && sudo semodule -i radicale-auth-ldap.pp
+
+You will need packages to run the above commands:
+
+* checkpolicy
+* policycoreutils-python (CentOS 7)
+* policycoreutils (CentOS 7, AlmaLinux 8, Fedora)
