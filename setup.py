@@ -4,7 +4,7 @@ from distutils.core import setup
 
 setup(
     name="radicale-auth-ldap",
-    version="0.2",
+    version="0.3",
     description="LDAP Authentication Plugin for Radicale 3",
     author="Raoul Thill",
     license="GNU GPL v3",
