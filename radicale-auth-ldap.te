@@ -1,0 +1,19 @@
+
+module radicale-auth-ldap 1.0;
+
+require {
+	type radicale_t;
+	type ldap_port_t;
+	type httpd_t;
+	type proc_net_t;
+	class capability net_admin;
+	class tcp_socket name_connect;
+	class file read;
+}
+
+#============= httpd_t ==============
+allow httpd_t self:capability net_admin;
+
+#============= radicale_t ==============
+allow radicale_t ldap_port_t:tcp_socket name_connect;
+allow radicale_t proc_net_t:file read;
